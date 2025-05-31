@@ -1,0 +1,33 @@
+[project]
+name = "mcp-web-search-crawl"
+version = "0.1.0"
+description = "A lightweight MCP server for web searching via DuckDuckGo and extracting page content as Markdown."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "crawl4ai>=0.6.3",
+    "duckduckgo-search>=8.0.2",
+    "fastmcp>=2.5.2",
+    "loguru>=0.7.2",
+    "pydantic>=2.11.5",
+    "pydantic-settings>=2.9.1",
+    "cachetools>=5.3.3",
+]
+
+
+
+[dependency-groups]
+dev = [
+    "ruff>=0.11.12",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+mcpsearchcrawl = "mcp_web_search_crawl:start_server"
