@@ -4,10 +4,8 @@ A Model Context Protocol (MCP) server that provides web search and crawling capa
 
 ## Features
 
-- **Web Search**: Search the web using DuckDuckGo and return link titles
+- **Web Search**: Search the web using DuckDuckGo and return link, titles and body snippets
 - **URL Crawling**: Crawl specific URLs and return their content as markdown
-- **MCP Integration**: Seamlessly integrates with any MCP-compatible client
-- **Fast and Efficient**: Built with modern Python tools including UV and FastMCP
 
 ## Installation
 

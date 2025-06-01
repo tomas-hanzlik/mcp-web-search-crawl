@@ -24,6 +24,8 @@ class AppSettings(BaseSettings):
     )
 
     transport: TransportMethod = Field(TransportMethod.STDIO, help="Transport method")
+    host: str = "0.0.0.0"
+    port: int = 8000
 
     browser_config: BrowserSettings = Field(default_factory=BrowserSettings)
     max_search_results: int = 8

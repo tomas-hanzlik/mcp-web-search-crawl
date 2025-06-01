@@ -1,37 +1,46 @@
-from loguru import logger
-from fastmcp import FastMCP, Context
 from cachetools import TTLCache
+from fastmcp import Context, FastMCP
+from loguru import logger
+from pydantic import BaseModel
 
 from mcp_web_search_crawl.config import settings
-from mcp_web_search_crawl.utils import search_web, crawl_pages
+from mcp_web_search_crawl.utils import crawl_pages, search_web
 
 # TTL cache for storing search results and crawled content to improve performance
 CACHE = TTLCache(maxsize=settings.cache_max_size, ttl=settings.cache_ttl_seconds)
 
-mcp = FastMCP("Web Search & Crawler 🚀", host="0.0.0.0", port="8000")
+mcp = FastMCP("Web Search & Crawler 🚀", host=settings.host, port=settings.port)
+
+
+class SearchResult(BaseModel):
+    url: str
+    title: str
+    body_snippet: str | None = None
+
+
+class CrawledContent(BaseModel):
+    url: str
+    markdown: str
 
 
 @mcp.tool(
-    description="Search the web using DuckDuckGo and get a list of relevant URLs with their titles and a snippet of their content. Use this when you need to find web pages related to a specific topic or query. Returns a list of dictionaries, each containing a URL, its title, and a snippet of content."
+    description="Search the web for a given query and return link titles only. Use this tool when the user asks about finding web pages or getting search results without detailed content."
 )
-async def search_links(query: str, ctx: Context) -> list[dict[str, str]]:
+async def search_links(query: str, ctx: Context) -> list[SearchResult]:
     """
-    Search the web for a given query and return a list of URLs with their titles and snippets of content.
+    Search the web for a given query and return link titles only.
 
-    This tool uses DuckDuckGo to perform a web search and retrieves the top results
-    without crawling the actual page content. It is ideal for discovering relevant
-    links, their titles, and a snippet of their content when researching a specific topic or query.
-
-    Use cases:
-        - Finding articles or resources related to a specific topic
-        - Exploring web pages about a technology, concept, or idea
-        - Quickly identifying relevant URLs for further analysis
+    Use this tool when you need to find web pages related to a topic but don't need
+    the full content. Returns search results with URLs, titles, and brief snippets.
 
     Args:
         query: The search query string to look for on the web.
 
     Returns:
-        list[dict[str, str]]: A list of dictionaries, each containing a URL, its corresponding page title, and a snippet of content.
+        A list of SearchResult objects, each containing:
+        - url: The URL of the search result
+        - title: The title of the web page
+        - body_snippet: A snippet of content from the web page (if available)
     """
     try:
         # Check cache first to avoid redundant API calls
@@ -47,7 +56,14 @@ async def search_links(query: str, ctx: Context) -> list[dict[str, str]]:
         CACHE[query] = search_results
 
         await ctx.info(f"✅ Found {len(search_results)} search results")
-        return search_results
+        return [
+            SearchResult(
+                url=result["href"],
+                title=result["title"],
+                body_snippet=result.get("body", None),
+            )
+            for result in search_results
+        ]
 
     except Exception as e:
         error_msg = f"Link search failed: {str(e)}"
@@ -57,27 +73,20 @@ async def search_links(query: str, ctx: Context) -> list[dict[str, str]]:
 
 
 @mcp.tool(
-    description="Crawl and extract the full content from specific web pages as markdown. Use this when you have URLs and need to read their actual content. Takes a list of URLs and returns their content in markdown format for easy processing and analysis."
+    description="Crawl specific URLs and return their content as markdown. Use this tool when you need the full content from specific web pages for analysis or summarization."
 )
-async def crawl_urls(urls: list[str], ctx: Context) -> dict[str, str]:
+async def crawl_urls(urls: list[str], ctx: Context) -> list[CrawledContent]:
     """
     Crawl specific URLs and return their content as markdown.
 
-    This tool takes a list of URLs, fetches their content, and converts it
-    to markdown format for easy reading and processing. Use this after you
-    have identified specific URLs you want to analyze or extract information from.
-
-    Use cases:
-        - Reading the full content of articles or blog posts
-        - Extracting structured information from web pages
-        - Getting detailed content after finding relevant URLs with search_links
-        - Analyzing the content of documentation pages or resources
+    Use this tool when you need to extract and analyze the full content from
+    specific web pages. Takes URLs and returns their content in markdown format.
 
     Args:
         urls: List of URLs to crawl and extract content from
 
     Returns:
-        dict[str, str]: A dictionary mapping URLs to their markdown content
+        List of CrawledContent objects, each containing the URL and its markdown content.
     """
     try:
         if not urls:
@@ -102,7 +111,11 @@ async def crawl_urls(urls: list[str], ctx: Context) -> dict[str, str]:
         CACHE[cache_key] = crawled_content
 
         await ctx.info(f"✅ Completed crawling {len(crawled_content)} pages")
-        return crawled_content
+
+        return [
+            CrawledContent(url=url, markdown=markdown)
+            for url, markdown in crawled_content.items()
+        ]
 
     except Exception as e:
         error_msg = f"URL crawling failed: {str(e)}"
